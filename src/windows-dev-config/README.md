@@ -66,7 +66,7 @@ Roughly **30 minutes** on a clean machine with a good connection, most of it spe
 | - | ------------ | ---------------- |
 | 1 | The first UAC prompt appears | **Accept it.** Most of the settings are machine-wide and need Administrator. |
 | 2 | PowerShell 7 is installed if it isn't already, and the setup restarts itself on it | None |
-| 3 | Ten of the eleven phases run: packages, Windows settings, fonts, Terminal, prompt, Copilot | None. Long silent stretches during big downloads are normal — a "still working" note prints every minute |
+| 3 | Ten of the eleven phases run: packages, Windows settings, fonts, Terminal, prompt | None. Long silent stretches during big downloads are normal — a "still working" note prints every minute |
 | 4 | WSL is installed. The machine warns you and **restarts after 10 seconds** | **Save your work before you start.** |
 | 5 | You sign back in; a window opens and the second UAC prompt appears | **Accept it** to finish the run |
 | 6 | A summary prints: how many things changed, how many were already fine | Press a key to close, or leave it — it closes itself after 15 minutes |
@@ -92,7 +92,6 @@ This flow is opinionated, and a few of its choices are worth knowing about up fr
 | **Remote Desktop is enabled** | `fDenyTSConnections` is set to `0`, which allows incoming RDP sessions. The Windows Firewall rule is *not* opened, so this alone doesn't expose the machine to your network — but it is a real change to the machine's posture. |
 | **Two Edge settings are applied as policy** | They're written under `HKLM\SOFTWARE\Policies\Microsoft\Edge`, so Edge will report "managed by your organization" and grey those two settings out in its UI. |
 | **All notifications are turned off** | Do Not Disturb is enabled globally, not just for a quiet-hours window. Teams, Outlook, and everything else stop raising toasts until you turn it back on. |
-| **Both Node.js LTS and nvm-windows are installed** | They are two different ways to manage Node. If you plan to use nvm, uninstall Node.js first so nvm owns the PATH entry. |
 | **Windows Terminal's `settings.json` is rewritten** | A `settings.json.bak` is written next to it first, but any comments in your settings file are lost, because the file is round-tripped through JSON. If the file can't be parsed, the Terminal change is flagged and skipped, the file is left untouched, and the remaining phases continue. |
 | **There's no uninstall** | Nothing that gets applied is reverted automatically. [Undoing it](#undoing-it) lists the manual reversals. |
 
@@ -100,7 +99,7 @@ Every one of these is listed in full detail in [What it changes](#what-it-change
 
 ## What it changes
 
-50 individual steps across 11 phases. Each one is checked first and skipped if the machine is already in that state.
+45 individual steps across 11 phases. Each one is checked first and skipped if the machine is already in that state.
 
 ### Packages
 
@@ -112,12 +111,10 @@ Installed with winget from the `winget` source, silently, with agreements accept
 | PowerShell 7 | `Microsoft.PowerShell` |
 | Git | `Git.Git` |
 | GitHub CLI | `GitHub.cli` |
-| GitHub Copilot CLI | `GitHub.Copilot` |
 | Visual Studio Code | `Microsoft.VisualStudioCode` |
 | .NET SDK 10 | `Microsoft.DotNet.SDK.10` |
 | Python 3.14 | `Python.Python.3.14` |
 | uv | `astral-sh.uv` |
-| Node.js LTS | `OpenJS.NodeJS.LTS` |
 | nvm for Windows | `CoreyButler.NVMforWindows` |
 | Coreutils for Windows | `Microsoft.Coreutils` |
 | Oh My Posh | `JanDeDobbeleer.OhMyPosh` |
@@ -187,14 +184,12 @@ Widgets are turned off through the OS policy value because the per-user taskbar 
 - **Cascadia Code NF** and **Cascadia Mono NF** are downloaded from the pinned [`microsoft/cascadia-code`](https://github.com/microsoft/cascadia-code/releases) release `2407.24`, verified against a known SHA-256, and installed **for all users** under `%SystemRoot%\Fonts`. An earlier per-user copy left by a previous run is removed.
 - **Windows Terminal** gets Cascadia Mono NF as its default font face and PowerShell 7 as its default profile. `settings.json` is backed up to `settings.json.bak` before either change.
 - **Oh My Posh** is initialized from your PowerShell 7 `$PROFILE`. If an `oh-my-posh init` line is already there, nothing is added.
-- A **GitHub Copilot** profile is added to Windows Terminal as a settings fragment in `%LOCALAPPDATA%\Microsoft\Windows Terminal\Fragments\DevConfig`, so it appears in the dropdown without editing your settings file.
 
 ### Developer extras
 
-These are **best-effort**: they need the network and a PATH that has just been updated, so a failure is flagged in the summary rather than stopping the run.
+This is **best-effort**: it needs the network and a PATH that has just been updated, so a failure is flagged in the summary rather than stopping the run.
 
 - The **WinUI templates** for `dotnet new` (`Microsoft.WindowsAppSDK.WinUI.CSharp.Templates`).
-- The **`microsoft/win-dev-skills`** marketplace and its **WinUI plugin**, registered with the GitHub Copilot CLI.
 
 ### WSL
 
@@ -211,7 +206,7 @@ Nothing *inside* the distro is configured by this flow. For that, see [WSL Comfo
 | # | Phase | Notes |
 | - | ----- | ----- |
 | 1 | Getting ready | Confirms PowerShell 7, then updates winget to the latest public stable release |
-| 2 | Packages | The 15 packages above, plus the PowerToys notification setting |
+| 2 | Packages | The 13 packages above, plus the PowerToys notification setting |
 | 3 | System settings | Sudo, Developer Mode, long paths, Remote Desktop |
 | 4 | File Explorer tweaks | |
 | 5 | Taskbar, search & start tweaks | |
@@ -219,7 +214,7 @@ Nothing *inside* the distro is configured by this flow. For that, see [WSL Comfo
 | 7 | Fonts | |
 | 8 | Windows Terminal | |
 | 9 | PowerShell profile | |
-| 10 | GitHub Copilot | The Terminal profile, WinUI templates, and the Copilot CLI plugin — all best-effort |
+| 10 | Developer extras | WinUI templates — best-effort |
 | 11 | WSL + Ubuntu | Last on purpose, so its restart happens after everything else is done |
 
 ### Check, apply, verify
@@ -305,7 +300,7 @@ $url = 'https://raw.githubusercontent.com/microsoft/WindowsDeveloperConfig/main/
 
 **What runs elevated.** The setup runs elevated after each UAC prompt. It needs Administrator for the `HKLM` settings, the WSL Windows features, and machine-wide package installs. The logon task itself runs at normal privilege, so it cannot silently elevate modified files.
 
-**What it downloads, and from where.** GitHub (this repository, the pinned Cascadia Code release, which is checked against a SHA-256, and the latest `microsoft/winget-cli` release), the PowerShell Gallery (the `Microsoft.WinGet.Client` module), the winget package sources, and the GitHub favicon used as the Copilot profile icon. Failing to fetch the icon is not treated as an error, and neither is failing to look up the latest winget version.
+**What it downloads, and from where.** GitHub (this repository, the pinned Cascadia Code release, which is checked against a SHA-256, and the latest `microsoft/winget-cli` release), the PowerShell Gallery (the `Microsoft.WinGet.Client` module), and the winget package sources. Failing to look up the latest winget version is not treated as an error.
 
 **Code signing.** Production requires valid Microsoft Corporation Authenticode signatures. Before execution, the elevation launcher verifies the bootstrap's signature and confirms the installed copy has the same hash. Bootstrap verifies its security helper before loading it and every payload `.ps1` before and after copying, including with `-NoLaunch`. Each production launch rechecks permissions and signatures before loading other helpers. Failed checks stop setup. `-AllowUnsigned` skips signature verification for source development.
 
@@ -343,7 +338,7 @@ Exactly what it says — switch to the other window. Two copies would fight over
 
 Flagged means best-effort work that couldn't be completed or confirmed. The run finishes and names them in the summary. Everything else was applied.
 
-The most common cause is a step that needs a package that hasn't finished registering yet — the WinUI templates need the .NET SDK on `PATH`, and the Copilot plugin steps need the GitHub Copilot CLI. **Run the command again**: the steps that already succeeded are skipped in seconds and only the flagged ones are retried.
+The most common cause is a step that needs a package that hasn't finished registering yet — the WinUI templates need the .NET SDK on `PATH`. **Run the command again**: the steps that already succeeded are skipped in seconds and only the flagged ones are retried.
 
 </details>
 
@@ -449,7 +444,6 @@ Everything else:
 - **Packages:** `winget uninstall --id <id>` using the ids in [Packages](#packages).
 - **Explorer, Start and search settings:** all of them are also in Settings and Explorer's Options dialog. Sign out and back in for them to take effect.
 - **Windows Terminal:** restore the `settings.json.bak` written next to `settings.json`.
-- **The Copilot Terminal profile:** delete `%LOCALAPPDATA%\Microsoft\Windows Terminal\Fragments\DevConfig`.
 - **The Oh My Posh prompt:** remove the `oh-my-posh init` block from your PowerShell 7 `$PROFILE`.
 - **Ubuntu:** `wsl --unregister Ubuntu`. This permanently deletes the distro's file system.
 - **The setup itself:** delete `%ProgramData%\CalmOS` from an elevated terminal.

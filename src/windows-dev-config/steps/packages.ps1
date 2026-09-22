@@ -18,12 +18,10 @@ function Invoke-PackagesPhase {
         @{ Name = 'PowerShell';    Id = 'Microsoft.PowerShell' }
         @{ Name = 'Git';           Id = 'Git.Git' }
         @{ Name = 'GitHubCLI';     Id = 'GitHub.cli' }
-        @{ Name = 'GitHubCopilot'; Id = 'GitHub.Copilot' }
         @{ Name = 'VSCode';        Id = 'Microsoft.VisualStudioCode'; Large = $true }
         @{ Name = 'DotnetSdk';     Id = 'Microsoft.DotNet.SDK.10';    Large = $true }
         @{ Name = 'Python';        Id = 'Python.Python.3.14' }
         @{ Name = 'UV';            Id = 'astral-sh.uv' }
-        @{ Name = 'NodeJS';        Id = 'OpenJS.NodeJS.LTS' }
         @{ Name = 'nvmForNode';    Id = 'CoreyButler.NVMforWindows' }
         @{ Name = 'Coreutils';     Id = 'Microsoft.Coreutils' }
         @{ Name = 'OhMyPosh';      Id = 'JanDeDobbeleer.OhMyPosh' }
