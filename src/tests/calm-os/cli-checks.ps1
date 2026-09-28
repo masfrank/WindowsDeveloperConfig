@@ -23,14 +23,14 @@ Check "wsl --version succeeds"                    { (wsl --version 2>$null) -ne 
 Check "vmcompute service registered"              { (Get-Service vmcompute -ErrorAction SilentlyContinue) -ne $null }
 Check "wsl lists Ubuntu"                          { (wsl -l -v 2>$null) -match 'Ubuntu' }
 Check "wsl lsb_release shows Ubuntu"              { (wsl -- lsb_release -d 2>$null) -match '^Description:\s+Ubuntu' }
+Check "wsl lsb_release shows Ubuntu 24.04"        { (wsl -- lsb_release -rs 2>$null) -match '^24\.04' }
 
 # Git
 Check "git --version succeeds"                    { (git --version 2>$null) -ne $null }
 Check "git resolves under Program Files\Git"      { (where.exe git 2>$null) -match 'C:\\Program Files\\Git' }
 
-# GitHub CLI & Copilot
+# GitHub CLI
 Check "gh --version succeeds"                     { (gh --version 2>$null) -ne $null }
-Check "gh copilot --version succeeds"             { (gh copilot --version 2>$null) -ne $null }
 
 # VS Code
 Check "code --version succeeds"                   { (code --version 2>$null) -ne $null }
@@ -46,13 +46,12 @@ Check "uv --version succeeds"                     { (uv --version 2>$null) -ne $
 Check "node --version starts with v24."           { (node --version 2>$null) -match '^v24\.' }
 Check "npm --version succeeds"                    { (npm --version 2>$null) -ne $null }
 Check "nvm version succeeds"                      { (nvm version 2>$null) -ne $null }
+Check "pnpm --version succeeds"                   { (pnpm --version 2>$null) -ne $null }
+Check "yarn --version succeeds"                   { (yarn --version 2>$null) -ne $null }
+Check "rimraf resolves on PATH"                   { (Get-Command rimraf -ErrorAction SilentlyContinue) -ne $null }
 
 # Oh My Posh
 Check "oh-my-posh --version succeeds"             { (oh-my-posh --version 2>$null) -ne $null }
-
-# Copilot plugins
-Check "win-dev-skills marketplace source present" { (copilot plugin marketplace list 2>$null) -match 'win-dev-skills' }
-Check "winui plugin listed from win-dev-skills"   { (copilot plugin list 2>$null) -match 'winui' }
 
 Write-Host ""
 Write-Host "Results: $pass passed, $fail failed" -ForegroundColor $(if ($fail -eq 0) { 'Green' } else { 'Yellow' })

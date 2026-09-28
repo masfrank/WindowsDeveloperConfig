@@ -6,6 +6,9 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+# The WSL distro this flow installs. Swap this for 'Ubuntu-26.04', or plain 'Ubuntu' for whatever release is current.
+$Script:DevConfigWslDistroName = 'Ubuntu-24.04'
+
 # This CBS key signals component servicing pending restart; app installer restart flags are ignored.
 function Test-DevConfigServicingRebootPending {
     return (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending')
@@ -128,8 +131,8 @@ function Test-DevConfigUbuntuInstalled {
         $distros = @(Get-Content -LiteralPath $out -Encoding UTF8 |
             ForEach-Object { ($_ -replace "`0", '').Trim() } |
             Where-Object { $_ })
-        # Match Ubuntu specifically, including versioned registrations such as Ubuntu-24.04.
-        return @($distros | Where-Object { $_ -like 'Ubuntu*' }).Count -gt 0
+        # Match the configured distro name exactly, including versioned registrations such as Ubuntu-24.04.
+        return @($distros | Where-Object { $_ -eq $Script:DevConfigWslDistroName }).Count -gt 0
     } catch {
         Write-Verbose "Could not list WSL distros: $($_.Exception.Message)"
         return $false
@@ -178,17 +181,17 @@ function Install-DevConfigUbuntu {
     New-Item -Path $lxssPath -Force | Out-Null
     Set-ItemProperty -Path $lxssPath -Name 'OOBEComplete' -Value 1 -Type DWord -Force
 
-    if (Install-DevConfigUbuntuVia -Arguments @('--install', '-d', 'Ubuntu', '--no-launch') -MaxAttempts 2) {
+    if (Install-DevConfigUbuntuVia -Arguments @('--install', '-d', $Script:DevConfigWslDistroName, '--no-launch') -MaxAttempts 2) {
         return
     }
 
     # The web-download path does not depend on Store access or Store registration timing.
-    Write-Host '  The Store copy of Ubuntu did not take. Downloading Ubuntu from the web instead.' -ForegroundColor Yellow
-    if (Install-DevConfigUbuntuVia -Arguments @('--install', '-d', 'Ubuntu', '--no-launch', '--web-download')) {
+    Write-Host "  The Store copy of $Script:DevConfigWslDistroName did not take. Downloading it from the web instead." -ForegroundColor Yellow
+    if (Install-DevConfigUbuntuVia -Arguments @('--install', '-d', $Script:DevConfigWslDistroName, '--no-launch', '--web-download')) {
         return
     }
 
-    Set-DevConfigStepUnverified -Reason "Ubuntu did not finish installing. Everything else is set up -- run this again, or install Ubuntu from the Start menu."
+    Set-DevConfigStepUnverified -Reason "$Script:DevConfigWslDistroName did not finish installing. Everything else is set up -- run this again, or install it from the Start menu."
 }
 
 function Invoke-DevConfigWslUbuntuInstall {
@@ -248,7 +251,7 @@ function Invoke-WslPhase {
             -Check { Test-DevConfigWslComponentsReady } `
             -Apply { param($OrchestratorPath) Install-DevConfigWslPlatform -OrchestratorPath $OrchestratorPath } `
             -ArgumentList @($OrchestratorPath)
-        New-DevConfigStep -Name 'WslUbuntu' -Description 'Install the default Ubuntu distro' -BestEffort `
+        New-DevConfigStep -Name 'WslUbuntu' -Description "Install the $Script:DevConfigWslDistroName distro" -BestEffort `
             -Check { Test-DevConfigUbuntuInstalled } `
             -Apply { Install-DevConfigUbuntu }
     )

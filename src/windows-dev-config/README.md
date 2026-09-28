@@ -60,13 +60,13 @@ For elevation, the launcher downloads and verifies the bootstrap, installs it in
 
 ## What to expect
 
-Roughly **30 minutes** on a clean machine with a good connection, most of it spent downloading Visual Studio Code, the .NET SDK, PowerToys, and Ubuntu.
+Roughly **30 minutes** on a clean machine with a good connection, most of it spent downloading Visual Studio Code, the .NET SDK, and Ubuntu.
 
 | # | What happens | Your involvement |
 | - | ------------ | ---------------- |
 | 1 | The first UAC prompt appears | **Accept it.** Most of the settings are machine-wide and need Administrator. |
 | 2 | PowerShell 7 is installed if it isn't already, and the setup restarts itself on it | None |
-| 3 | Ten of the eleven phases run: packages, Windows settings, fonts, Terminal, prompt | None. Long silent stretches during big downloads are normal — a "still working" note prints every minute |
+| 3 | Twelve of the thirteen phases run: Node, packages, Windows settings, fonts, Terminal, prompt | None. Long silent stretches during big downloads are normal — a "still working" note prints every minute |
 | 4 | WSL is installed. The machine warns you and **restarts after 10 seconds** | **Save your work before you start.** |
 | 5 | You sign back in; a window opens and the second UAC prompt appears | **Accept it** to finish the run |
 | 6 | A summary prints: how many things changed, how many were already fine | Press a key to close, or leave it — it closes itself after 15 minutes |
@@ -99,7 +99,7 @@ Every one of these is listed in full detail in [What it changes](#what-it-change
 
 ## What it changes
 
-45 individual steps across 11 phases. Each one is checked first and skipped if the machine is already in that state.
+45 individual steps across 13 phases. Each one is checked first and skipped if the machine is already in that state.
 
 ### Packages
 
@@ -119,12 +119,11 @@ Installed with winget from the `winget` source, silently, with agreements accept
 | Coreutils for Windows | `Microsoft.Coreutils` |
 | Oh My Posh | `JanDeDobbeleer.OhMyPosh` |
 | Windows App CLI | `Microsoft.WinAppCli` |
-| PowerToys | `Microsoft.PowerToys` |
 
 A package counts as done only when winget reports it installed **and** current, so a re-run also picks up available updates.
 
 <details>
-<summary><strong>Windows settings — all 24 registry values</strong></summary>
+<summary><strong>Windows settings — all 21 registry values</strong></summary>
 
 **System** (`HKLM`, requires Administrator)
 
@@ -159,7 +158,6 @@ A package counts as done only when winget reports it installed **and** current, 
 | No search highlights | `HKCU\...\SearchSettings\IsDynamicSearchBoxEnabled` | `0` |
 | No Start menu recommendations | `HKCU\...\Explorer\Advanced\Start_IrisRecommendations` | `0` |
 | Widgets off | `HKLM\SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests` | `0` |
-| No PowerToys always-on-top toasts | `HKCU\...\Notifications\Settings\PowerToys\Enabled` | `0` |
 
 Widgets are turned off through the OS policy value because the per-user taskbar icon value no longer takes effect on Windows 11 24H2 and later.
 
@@ -185,17 +183,28 @@ Widgets are turned off through the OS policy value because the per-user taskbar 
 - **Windows Terminal** gets Cascadia Mono NF as its default font face and PowerShell 7 as its default profile. `settings.json` is backed up to `settings.json.bak` before either change.
 - **Oh My Posh** is initialized from your PowerShell 7 `$PROFILE`. If an `oh-my-posh init` line is already there, nothing is added.
 
+### Node
+
+- **Node.js 24** is installed through nvm (`nvm install 24`, then `nvm use 24`), so nvm owns the PATH entry and other major versions are one `nvm use` away.
+- The global npm tools **pnpm**, **yarn**, and **rimraf** are installed with `npm install -g`.
+
+The major version and the global tool set live at the top of [`steps/node.ps1`](./steps/node.ps1).
+
 ### Developer extras
 
 This is **best-effort**: it needs the network and a PATH that has just been updated, so a failure is flagged in the summary rather than stopping the run.
 
 - The **WinUI templates** for `dotnet new` (`Microsoft.WindowsAppSDK.WinUI.CSharp.Templates`).
 
+### Vibe coding tools (optional)
+
+After the last phase, a picker lists optional command-line tools — the npm globals `@openai/codex`, `@cometix/claude-code`, `@qwen-code/qwen-code`, `@deepseek-ai/dsh`, `@opencode/cli`, `@earendil-works/pi-coding-agent`, plus the xAI Grok CLI, the Google Antigravity CLI, and an omp.sh Oh My Posh install. **↑/↓** move, **Space** toggles a row, **Enter** installs what is checked. Nothing is installed unless you tick it, and the same commands are printed on screen so you can run them by hand instead. The picker idles out after 10 minutes and is skipped automatically when input is redirected, so unattended runs never hang on it.
+
 ### WSL
 
 - The WSL platform components, via `wsl --install --no-distribution`. If that isn't available, the `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux` Windows features are enabled directly with `dism.exe` instead.
 - A restart, if one is needed — see [Reboot and resume](#reboot-and-resume).
-- **Ubuntu**, via `wsl --install -d Ubuntu --no-launch`, falling back to `--web-download` if the Microsoft Store route doesn't complete. The distro's first-run welcome screen is suppressed; open Ubuntu from the Start menu to create your Linux user.
+- **Ubuntu 24.04**, via `wsl --install -d Ubuntu-24.04 --no-launch`, falling back to `--web-download` if the Microsoft Store route doesn't complete. The distro's first-run welcome screen is suppressed; open Ubuntu from the Start menu to create your Linux user. The distro name is a single value, `$Script:DevConfigWslDistroName` in [`steps/wsl.ps1`](./steps/wsl.ps1) — set it to `Ubuntu-26.04` when you want 26.04 instead.
 
 Nothing *inside* the distro is configured by this flow. For that, see [WSL Comfort](../wsl-comfort/readme.md).
 
@@ -206,16 +215,18 @@ Nothing *inside* the distro is configured by this flow. For that, see [WSL Comfo
 | # | Phase | Notes |
 | - | ----- | ----- |
 | 1 | Getting ready | Confirms PowerShell 7, then updates winget to the latest public stable release |
-| 2 | Packages | The 13 packages above, plus the PowerToys notification setting |
-| 3 | System settings | Sudo, Developer Mode, long paths, Remote Desktop |
-| 4 | File Explorer tweaks | |
-| 5 | Taskbar, search & start tweaks | |
-| 6 | Microsoft Edge tweaks | |
-| 7 | Fonts | |
-| 8 | Windows Terminal | |
-| 9 | PowerShell profile | |
-| 10 | Developer extras | WinUI templates — best-effort |
-| 11 | WSL + Ubuntu | Last on purpose, so its restart happens after everything else is done |
+| 2 | Packages | The 12 packages above |
+| 3 | Node via nvm | `nvm install 24` + `nvm use 24`, then `npm install -g pnpm yarn rimraf` |
+| 4 | System settings | Sudo, Developer Mode, long paths, Remote Desktop |
+| 5 | File Explorer tweaks | |
+| 6 | Taskbar, search & start tweaks | |
+| 7 | Microsoft Edge tweaks | |
+| 8 | Fonts | |
+| 9 | Windows Terminal | |
+| 10 | PowerShell profile | |
+| 11 | Developer extras | WinUI templates — best-effort |
+| 12 | WSL + Ubuntu | Near the end, so its restart happens after everything else is done |
+| 13 | Vibe coding tools (optional) | The picker — runs after WSL, so it lands in the resumed half of the run |
 
 ### Check, apply, verify
 
@@ -445,7 +456,7 @@ Everything else:
 - **Explorer, Start and search settings:** all of them are also in Settings and Explorer's Options dialog. Sign out and back in for them to take effect.
 - **Windows Terminal:** restore the `settings.json.bak` written next to `settings.json`.
 - **The Oh My Posh prompt:** remove the `oh-my-posh init` block from your PowerShell 7 `$PROFILE`.
-- **Ubuntu:** `wsl --unregister Ubuntu`. This permanently deletes the distro's file system.
+- **Ubuntu 24.04 (or whatever the config names):** `wsl --unregister Ubuntu-24.04`. This permanently deletes the distro's file system.
 - **The setup itself:** delete `%ProgramData%\CalmOS` from an elevated terminal.
 
 ## Customizing it
@@ -455,11 +466,13 @@ Edit the files under `src\windows-dev-config` in your clone, then run the [unsig
 | To... | Edit |
 | ----- | ---- |
 | Add or remove a package | The `$packages` list in [`steps/packages.ps1`](./steps/packages.ps1) |
+| Change the Node major version or the global npm tools | `$Script:DevConfigNodeMajorVersion` and `$Script:DevConfigNpmGlobalPackages` in [`steps/node.ps1`](./steps/node.ps1) |
 | Change or drop a Windows setting | The `$tweaks` list in the matching `steps/registry-*.ps1` |
 | Skip the Edge policies entirely | Remove `edge.ps1` from the `$phases` list in [`dev-config.ps1`](./dev-config.ps1) |
 | Keep Remote Desktop off | Delete the `RemoteDesktop` entry in [`steps/registry-system.ps1`](./steps/registry-system.ps1) |
 | Change the terminal font | `$Script:CascadiaDefaultFontFace` in [`steps/fonts.ps1`](./steps/fonts.ps1) |
-| Install a different distro | The `wsl --install -d Ubuntu` arguments in [`steps/wsl.ps1`](./steps/wsl.ps1) |
+| Install a different distro | `$Script:DevConfigWslDistroName` in [`steps/wsl.ps1`](./steps/wsl.ps1) — `Ubuntu-24.04`, `Ubuntu-26.04`, or plain `Ubuntu` |
+| Change the optional vibe coding tools | The `Get-DevConfigVibeCodingTools` list in [`steps/vibe-coding.ps1`](./steps/vibe-coding.ps1) |
 | Add something new | Copy the shape of any phase file: build steps with `New-DevConfigStep` and pass them to `Invoke-DevConfigSteps` |
 
 A phase is just a file plus an entry in the `$phases` list. Files prefixed with `_` are shared helpers, not phases.
@@ -473,7 +486,8 @@ A phase is just a file plus an entry in the `$phases` list. Files prefixed with 
 | **Package versions move** | Packages are installed at whatever winget currently publishes, so two machines set up on different days can differ. `Microsoft.DotNet.SDK.10` and `Python.Python.3.14` pin a major version and will need bumping as those age. |
 | **The font release is pinned** | Cascadia Code `2407.24`, verified by hash. Newer releases need both the version and the hash updated in `steps/fonts.ps1`. |
 | **Terminal settings lose their comments** | `settings.json` is round-tripped through JSON, so comments don't survive. A `.bak` is written first. |
-| **No package selection at run time** | It's the full set or a local edit. There's no `-Skip` switch and no prompt. |
+| **No package selection at run time** | It's the full set or a local edit. There's no `-Skip` switch and no prompt. (The optional vibe coding tools are the one exception — they are picked by hand at the end.) |
+| **The vibe coding picker needs a person** | It waits at the console for up to 10 minutes and skips itself when input is redirected. A run that installs everything else on its own will never install those optional tools — re-run and tick the rows then. |
 | **No dry run** | There's no `-WhatIf`. The `already OK` output tells you what a re-run *would* skip, but only after the fact. |
 | **Git and GitHub CLI are installed, not configured** | No `git config user.name`, no `gh auth login`. |
 | **`%ProgramData%\CalmOS` stays behind** | Setup and its log remain for resume and reruns. Deleting them requires Administrator rights. |

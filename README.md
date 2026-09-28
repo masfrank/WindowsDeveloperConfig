@@ -75,10 +75,11 @@ If you're not already elevated, setup requests UAC consent before starting. It r
 <details>
 <summary><strong>What you get</strong></summary>
 
-- **Dev tools:** Windows Terminal, PowerShell 7, Git, GitHub CLI, VS Code, .NET SDK 10, Python 3.14 + uv, nvm, Coreutils for Windows, Windows App CLI, Oh My Posh, and PowerToys.
+- **Dev tools:** Windows Terminal, PowerShell 7, Git, GitHub CLI, VS Code, .NET SDK 10, Python 3.14 + uv, Node 24 via nvm (+ pnpm, yarn, rimraf), Coreutils for Windows, Windows App CLI, and Oh My Posh.
 - **Terminal:** PowerShell 7 as the default profile, Oh My Posh in your prompt, and Cascadia Mono NF as the default font.
 - **Windows settings:** Dark theme, Developer Mode, Sudo, long paths, File Explorer defaults, Start/Search cleanup, Do Not Disturb, widgets off, and Edge policies.
-- **WSL:** WSL platform + Ubuntu, including the restart and the automatic resume afterwards.
+- **WSL:** WSL platform + Ubuntu 24.04 (switchable to 26.04 in the config), including the restart and the automatic resume afterwards.
+- **Vibe coding tools (optional):** at the very end, a picker lets you tick optional CLI tools — codex, claude-code, qwen-code, dsh, opencode, pi-coding-agent, the xAI Grok CLI, and the Google Antigravity CLI. Nothing is installed unless you tick it.
 
 </details>
 
