@@ -18,7 +18,9 @@ From Windows, without opening a terminal first:
 wsl -d Ubuntu-24.04 -- bash -ic "curl -fsSL https://raw.githubusercontent.com/masfrank/WindowsDeveloperConfig/main/src/wsl-vibe/install-vibe.sh | bash -s -- --tools codex,grok,bun"
 ```
 
-The zsh step asks for your `sudo` password part-way through — that is expected. The script is safe to re-run.
+The zsh step asks for your `sudo` password part-way through — that is expected. The script is safe to re-run; already-installed pieces are skipped (nvm's installer is skipped when `~/.nvm` exists).
+
+After it finishes, the zsh step has already switched your default shell, so **new terminals open in zsh**. The terminal that ran the script is still `bash` — start zsh in it with `exec zsh`.
 
 ## Options
 
@@ -36,8 +38,17 @@ The zsh step asks for your `sudo` password part-way through — that is expected
 
 - `zsh`, via the [`install-zsh.sh`](https://gist.github.com/masfrank/d0102fc77a7c2df4f8db7810ee29b7fb) gist
 - The zsh plugins, via the [`install-zsh-plugin.sh`](https://gist.github.com/masfrank/8c6cf75d67f9fd81ef7217d862227225) gist
-- nvm `v0.40.8`, then `nvm install 24` + `nvm use 24`
+- nvm `v0.40.8` (installer skipped when `~/.nvm` already exists), then `nvm install 24` + `nvm use 24`, and `nvm alias default 24` so every new terminal has Node
 - The global npm tools `pnpm`, `yarn`, `rimraf`
+- The nvm loader appended to `~/.zshrc` when missing — the nvm installer only patches `~/.bashrc`, and after the zsh step new terminals read `~/.zshrc`
+
+If a run dies mid-way (a dropped connection, a Ctrl-C), re-run the same command: every step detects what is already there. To catch up on just the Node part by hand:
+
+```bash
+export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm install 24 && nvm use 24 && nvm alias default 24
+npm install -g pnpm yarn rimraf
+```
 
 **Optional groups:**
 

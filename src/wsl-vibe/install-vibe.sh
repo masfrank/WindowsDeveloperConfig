@@ -54,6 +54,24 @@ run() {
     fi
 }
 
+# The nvm installer only patches ~/.bashrc. After the zsh step runs `chsh -s zsh`,
+# new terminals read ~/.zshrc, so make sure nvm (and Node 24) load there too.
+ensure_zsh_nvm_loader() {
+    local zshrc="$HOME/.zshrc"
+    if grep -q 'NVM_DIR' "$zshrc" 2>/dev/null; then
+        return 0
+    fi
+    touch "$zshrc"
+    cat >> "$zshrc" <<'NVM_SNIPPET'
+
+# nvm (added by the WindowsDeveloperConfig WSL vibe script)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+NVM_SNIPPET
+    note 'Added the nvm loader to ~/.zshrc so zsh terminals have Node.'
+}
+
 parse_tools() {
     local groups token
     groups=$(printf '%s' "$1" | tr ',' ' ')
@@ -144,24 +162,38 @@ run './install-zsh-plugin.sh'
 
 # ---------------------------------------------------------------------------
 # 3. nvm + Node 24
+#
+# nvm.sh is not compatible with `set -u` -- it reads unset variables (STABLE
+# among them) while it runs, which aborts the whole script under `set -e`.
+# The installer is skipped when ~/.nvm already exists, so re-runs stay clean.
 # ---------------------------------------------------------------------------
 log 'Installing nvm and Node 24'
-run "curl -o- $NVM_INSTALL_URL | bash"
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    note "nvm is already at $HOME/.nvm, skipping its installer."
+else
+    run "curl -o- $NVM_INSTALL_URL | bash"
+fi
 
-# nvm is a shell function; source it so the rest of this script can call it directly.
-export NVM_DIR="$HOME/.nvm"
 if [ "$DRY_RUN" = '1' ]; then
     note '[dry-run] skipping nvm sourcing -- later steps assume Node 24 ends up on PATH.'
-elif [ -s "$NVM_DIR/nvm.sh" ]; then
+elif [ -s "$HOME/.nvm/nvm.sh" ]; then
+    # nvm is a shell function; source it so the rest of this script can call it directly.
+    set +u
+    NVM_DIR="$HOME/.nvm"
     # shellcheck disable=SC1091
     . "$NVM_DIR/nvm.sh"
+    run 'nvm list'
+    run 'nvm install 24'
+    run 'nvm use 24'
+    # `nvm use` only affects this shell; the default alias makes Node available
+    # in every new terminal too.
+    nvm alias default 24
+    set -u
+    ensure_zsh_nvm_loader
 else
-    warn "Could not find nvm at $NVM_DIR after installing it -- check the nvm installer output."
+    warn "Could not find nvm at $HOME/.nvm after installing it -- check the nvm installer output."
     exit 1
 fi
-run 'nvm list'
-run 'nvm install 24'
-run 'nvm use 24'
 
 # ---------------------------------------------------------------------------
 # 4. Base global npm tools
@@ -221,4 +253,6 @@ if [ "$WANT_BUN" = '1' ]; then
 fi
 
 log 'Done'
-note 'Open a new terminal (or run: exec zsh) for the shell changes to take effect.'
+note 'The zsh step already switched your default shell (chsh), so NEW terminals open in zsh.'
+note 'This terminal is still bash -- start zsh right now with:  exec zsh'
+note 'Re-running this script is safe; already-installed pieces are skipped.'
