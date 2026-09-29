@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  End-of-run picker that installs optional vibe coding CLI tools.
+  End-of-run picker that records the optional WSL2 tool picks and prints the one-line command that installs them.
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -9,56 +9,52 @@ Set-StrictMode -Version Latest
 # Idle timeout for the picker so an unattended run does not hold the window open forever.
 $Script:DevConfigVibeIdleSeconds = 600
 
-# All rows start unchecked; a row installs only after Space toggles it on.
+# The companion script that runs inside the WSL2 distro; the calm-os Windows side installs none of these.
+$Script:DevConfigVibeScriptUrl = 'https://raw.githubusercontent.com/masfrank/WindowsDeveloperConfig/main/src/wsl-vibe/install-vibe.sh'
+
+# The distro the WSL side was set up with; falls back to the flow's default when run standalone.
+function Get-DevConfigVibeDistroName {
+    $known = Get-Variable -Name 'DevConfigWslDistroName' -Scope Script -ErrorAction SilentlyContinue
+    if ($known -and $known.Value) {
+        return $known.Value
+    }
+    return 'Ubuntu-24.04'
+}
+
+# Each pick maps to an --tools group understood by the WSL script. The WSL base install
+# (zsh, zsh plugins, nvm, Node 24, pnpm/yarn/rimraf) is always part of the script.
 function Get-DevConfigVibeCodingTools {
     return @(
         [pscustomobject]@{
-            Label   = 'npm global CLIs: codex, claude-code, qwen-code, dsh, opencode, pi-coding-agent'
-            Command = 'npm install -g @openai/codex @cometix/claude-code @qwen-code/qwen-code @deepseek-ai/dsh @opencode/cli @earendil-works/pi-coding-agent'
-            Install = {
-                if (-not (Get-Command 'npm' -ErrorAction SilentlyContinue)) {
-                    throw 'npm is not on PATH yet; Node has to be installed through nvm first.'
-                }
-                $r = Invoke-DevConfigNativeCommand -FilePath 'npm' -Arguments @(
-                    'install', '-g',
-                    '@openai/codex',
-                    '@cometix/claude-code',
-                    '@qwen-code/qwen-code',
-                    '@deepseek-ai/dsh',
-                    '@opencode/cli',
-                    '@earendil-works/pi-coding-agent'
-                )
-                if ($r.ExitCode -ne 0) {
-                    Write-Host $r.Output
-                    throw "npm install -g failed with exit code $($r.ExitCode)."
-                }
-            }
+            Label = 'npm agent CLIs: codex, claude-code, dsh, opencode, pi-coding-agent'
+            Id    = 'codex'
         }
         [pscustomobject]@{
-            Label   = 'Grok CLI (x.ai)'
-            Command = 'irm https://x.ai/cli/install.ps1 | iex'
-            Install = { Invoke-DevConfigRemoteInstallScript -Uri 'https://x.ai/cli/install.ps1' }
+            Label = 'Grok CLI (x.ai)'
+            Id    = 'grok'
         }
         [pscustomobject]@{
-            Label   = 'Antigravity CLI (Google)'
-            Command = 'irm https://antigravity.google/cli/install.ps1 | iex'
-            Install = { Invoke-DevConfigRemoteInstallScript -Uri 'https://antigravity.google/cli/install.ps1' }
-        }
-        [pscustomobject]@{
-            Label   = 'Oh My Posh via omp.sh (a second copy next to the winget one)'
-            Command = 'irm https://omp.sh/install.ps1 | iex'
-            Install = { Invoke-DevConfigRemoteInstallScript -Uri 'https://omp.sh/install.ps1' }
+            Label = 'bun + oh-my-pi coding agent'
+            Id    = 'bun'
         }
     )
 }
 
-# Downloads and runs the same install script the picker prints, exactly as the irm ... | iex one-liners do.
-function Invoke-DevConfigRemoteInstallScript {
+function Get-DevConfigVibeScriptArgs {
     param(
-        [Parameter(Mandatory)] [string] $Uri
+        [Parameter(Mandatory)] [object[]] $Tools,
+        [Parameter(Mandatory)] [bool[]] $Checked
     )
-    Write-Host "  Downloading and running $Uri ..." -ForegroundColor DarkGray
-    Invoke-Expression (Invoke-RestMethod -Uri $Uri -UseBasicParsing)
+    $picked = @()
+    for ($i = 0; $i -lt $Tools.Count; $i++) {
+        if ($Checked[$i]) {
+            $picked += $Tools[$i].Id
+        }
+    }
+    if ($picked.Count -eq 0) {
+        return '--base-only'
+    }
+    return "--tools $($picked -join ',')"
 }
 
 # Box characters are built with [char] so the file stays plain ASCII for any console host.
@@ -84,8 +80,8 @@ function Write-DevConfigVibeBoxText {
 function Write-DevConfigVibeHeader {
     Write-Host ''
     Write-DevConfigVibeBoxEdge -Left ([char]0x256D) -Fill ([char]0x2500) -Right ([char]0x256E)
-    Write-DevConfigVibeBoxText -Text 'Vibe coding tools -- optional, pick any or none'
-    Write-DevConfigVibeBoxText -Text 'Up/Down: move    Space: toggle    Enter: run checked    Esc: skip'
+    Write-DevConfigVibeBoxText -Text 'Vibe coding tools -- optional, picked for install inside WSL2'
+    Write-DevConfigVibeBoxText -Text 'Up/Down: move    Space: toggle    Enter: show command    Esc: skip'
     Write-DevConfigVibeBoxEdge -Left ([char]0x2570) -Fill ([char]0x2500) -Right ([char]0x256F)
 }
 
@@ -100,7 +96,7 @@ function Write-DevConfigVibeList {
         $pointer = if ($i -eq $Current) { '>' } else { ' ' }
         Write-Host "  $pointer [$mark] $($Tools[$i].Label)"
     }
-    Write-Host '  Up/Down: move    Space: toggle    Enter: run checked    Esc: skip' -ForegroundColor DarkGray
+    Write-Host '  Up/Down: move    Space: toggle    Enter: show command    Esc: skip' -ForegroundColor DarkGray
 }
 
 # Blanking the drawn lines in place keeps the picker still instead of scrolling the window.
@@ -134,42 +130,25 @@ function Read-DevConfigVibeKey {
     }
 }
 
-function Write-DevConfigVibeManualCommands {
+function Write-DevConfigVibeInstructions {
     param(
-        [Parameter(Mandatory)] [object[]] $Tools
+        [Parameter(Mandatory)] [string] $ScriptArgs
     )
-    Write-Host '  Nothing was installed. To run any of these by hand later:' -ForegroundColor DarkGray
-    foreach ($tool in $Tools) {
-        Write-Host "    $($tool.Command)" -ForegroundColor DarkGray
-    }
-}
 
-function Install-DevConfigVibeTools {
-    param(
-        [Parameter(Mandatory)] [object[]] $Tools,
-        [Parameter(Mandatory)] [bool[]] $Checked
-    )
-    $picked = @()
-    for ($i = 0; $i -lt $Tools.Count; $i++) {
-        if ($Checked[$i]) {
-            $picked += $Tools[$i]
-        }
-    }
-    if ($picked.Count -eq 0) {
-        Write-DevConfigVibeManualCommands -Tools $Tools
-        return
-    }
-
-    foreach ($tool in $picked) {
-        Write-Host "  -> $($tool.Label)..." -ForegroundColor DarkCyan
-        try {
-            & $tool.Install
-            Write-Host "  $Script:DevConfigCheckMark $($tool.Label) done" -ForegroundColor Green
-        } catch {
-            # One failing tool must not stop the ones after it or lose the end-of-run summary.
-            Write-Host "  ! $($_.Exception.Message)" -ForegroundColor Yellow
-        }
-    }
+    $url     = $Script:DevConfigVibeScriptUrl
+    $distro  = Get-DevConfigVibeDistroName
+    $install = "curl -fsSL $url | bash -s -- $ScriptArgs"
+    Write-Host ''
+    Write-Host 'Everything above is set. For the vibe coding tools, run this once INSIDE your' -ForegroundColor Green
+    Write-Host 'WSL2 distro -- open it from the Start menu, then paste:' -ForegroundColor Green
+    Write-Host "  $install" -ForegroundColor White
+    Write-Host ''
+    Write-Host 'You can also launch it from Windows without opening a terminal first:' -ForegroundColor DarkGray
+    Write-Host "  wsl -d $distro -- bash -ic `"$install`"" -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host 'The script installs zsh, the zsh plugins, nvm, Node 24, and pnpm/yarn/rimraf,' -ForegroundColor DarkGray
+    Write-Host 'then whatever the picks above select. Nothing on the Windows side is touched.' -ForegroundColor DarkGray
+    Write-Host "(Add --help to that script to see every option.)" -ForegroundColor DarkGray
 }
 
 function Show-DevConfigVibeCodingPicker {
@@ -179,12 +158,12 @@ function Show-DevConfigVibeCodingPicker {
 
     Write-DevConfigVibeHeader
 
-    # Redirected input (or no console at all) cannot answer the prompt; list the commands instead.
+    # Redirected input (or no console at all) cannot answer the prompt; show the base command instead.
     $interactive = $true
     try { $null = [Console]::KeyAvailable } catch { $interactive = $false }
     if (-not $interactive) {
-        Write-Host '  Console input is redirected, so the optional tools were skipped.' -ForegroundColor DarkGray
-        Write-DevConfigVibeManualCommands -Tools $Tools
+        Write-Host '  Console input is redirected, so nothing was picked.' -ForegroundColor DarkGray
+        Write-DevConfigVibeInstructions -ScriptArgs '--base-only'
         return
     }
 
@@ -197,13 +176,13 @@ function Show-DevConfigVibeCodingPicker {
         if ($null -eq $key) {
             Clear-DevConfigVibeListLines -Count ($Tools.Count + 1)
             Write-DevConfigVibeHeader
-            Write-Host '  No selection was made in time, so the optional tools were skipped.' -ForegroundColor DarkGray
-            Write-DevConfigVibeManualCommands -Tools $Tools
+            Write-Host '  No selection was made in time.' -ForegroundColor DarkGray
+            Write-DevConfigVibeInstructions -ScriptArgs '--base-only'
             return
         }
 
         if ($key -eq 'Escape') {
-            Write-DevConfigVibeManualCommands -Tools $Tools
+            Write-DevConfigVibeInstructions -ScriptArgs '--base-only'
             return
         }
         switch ($key) {
@@ -211,8 +190,9 @@ function Show-DevConfigVibeCodingPicker {
             'DownArrow' { if ($current -lt $Tools.Count - 1) { $current++ } }
             'Spacebar'  { $checked[$current] = -not $checked[$current] }
             'Enter'     {
+                $scriptArgs = Get-DevConfigVibeScriptArgs -Tools $Tools -Checked $checked
                 Clear-DevConfigVibeListLines -Count ($Tools.Count + 1)
-                Install-DevConfigVibeTools -Tools $Tools -Checked $checked
+                Write-DevConfigVibeInstructions -ScriptArgs $scriptArgs
                 return
             }
         }

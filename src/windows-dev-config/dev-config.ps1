@@ -81,14 +81,13 @@ Write-Host ''
 if ($Script:DevConfigResumed) {
     Write-Host 'Welcome back. Resuming Calm OS setup after the reboot...' -ForegroundColor Cyan
 } else {
-    Write-Host 'Calm OS setup -- 13 phases, one reboot along the way (expected, not an error)' -ForegroundColor Cyan
+    Write-Host 'Calm OS setup -- 12 phases, one reboot along the way (expected, not an error)' -ForegroundColor Cyan
 }
 
 # WSL stays near the end so its required reboot happens after other phases; the optional vibe coding picker runs after it.
 $phases = @(
     @{ File = 'prerequisites.ps1';           Function = 'Invoke-PrerequisitesPhase';          Title = 'Getting ready' }
     @{ File = 'packages.ps1';               Function = 'Invoke-PackagesPhase';               Title = 'Packages' }
-    @{ File = 'node.ps1';                   Function = 'Invoke-NodePhase';                   Title = 'Node via nvm' }
     @{ File = 'registry-system.ps1';         Function = 'Invoke-RegistrySystemPhase';         Title = 'System settings' }
     @{ File = 'registry-explorer.ps1';       Function = 'Invoke-RegistryExplorerPhase';       Title = 'File Explorer tweaks' }
     @{ File = 'registry-taskbar-search.ps1'; Function = 'Invoke-RegistryTaskbarSearchPhase';  Title = 'Taskbar, search & start tweaks' }

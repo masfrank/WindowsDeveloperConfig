@@ -42,13 +42,7 @@ Check "dotnet --version starts with 10."          { (dotnet --version 2>$null) -
 Check "python --version starts with 3.14"         { (python --version 2>$null) -match '3\.14\.' }
 Check "uv --version succeeds"                     { (uv --version 2>$null) -ne $null }
 
-# Node.js / npm / nvm
-Check "node --version starts with v24."           { (node --version 2>$null) -match '^v24\.' }
-Check "npm --version succeeds"                    { (npm --version 2>$null) -ne $null }
-Check "nvm version succeeds"                      { (nvm version 2>$null) -ne $null }
-Check "pnpm --version succeeds"                   { (pnpm --version 2>$null) -ne $null }
-Check "yarn --version succeeds"                   { (yarn --version 2>$null) -ne $null }
-Check "rimraf resolves on PATH"                   { (Get-Command rimraf -ErrorAction SilentlyContinue) -ne $null }
+# Node lives in WSL2 now -- the in-distro checks belong to the WSL Vibe Coding script.
 
 # Oh My Posh
 Check "oh-my-posh --version succeeds"             { (oh-my-posh --version 2>$null) -ne $null }

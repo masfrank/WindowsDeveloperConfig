@@ -22,7 +22,6 @@ function Invoke-PackagesPhase {
         @{ Name = 'DotnetSdk';     Id = 'Microsoft.DotNet.SDK.10';    Large = $true }
         @{ Name = 'Python';        Id = 'Python.Python.3.14' }
         @{ Name = 'UV';            Id = 'astral-sh.uv' }
-        @{ Name = 'nvmForNode';    Id = 'CoreyButler.NVMforWindows' }
         @{ Name = 'Coreutils';     Id = 'Microsoft.Coreutils' }
         @{ Name = 'OhMyPosh';      Id = 'JanDeDobbeleer.OhMyPosh' }
         @{ Name = 'winappCli';     Id = 'Microsoft.WinAppCli' }
